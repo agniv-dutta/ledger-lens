@@ -39,6 +39,16 @@ npm install
 npm run dev
 ```
 
+## Docker
+
+Build and start the service with MongoDB using Docker Compose:
+
+```bash
+docker compose up --build
+```
+
+The app listens on port `3000` and connects to the bundled MongoDB container.
+
 ## Triggering A Reconciliation Run
 
 Submit a CSV reconciliation job with `POST /reconcile`. The request is asynchronous: the API responds with `202 Accepted` and the caller polls the report endpoints until the run completes.
@@ -134,6 +144,63 @@ Example response:
       }
     }
   ]
+}
+```
+
+### GET /report/:runId/export
+
+Streams the reconciliation report as CSV directly in the HTTP response.
+
+Response headers:
+
+- `Content-Type: text/csv`
+- `Content-Disposition: attachment; filename="reconciliation-<runId>.csv"`
+
+### GET /runs
+
+Returns a paginated list of reconciliation runs.
+
+Query parameters:
+
+- `page` - defaults to `1`
+- `limit` - defaults to `20`, maximum `100`
+- `status` - optional filter by `pending`, `running`, `completed`, or `failed`
+
+Example response:
+
+```json
+{
+  "total": 12,
+  "page": 1,
+  "limit": 20,
+  "runs": [
+    {
+      "runId": "cda7d2f3-4c1d-4eb2-9df1-62f9a0ccfa91",
+      "status": "completed",
+      "summary": {
+        "matched": 15,
+        "conflicting": 1,
+        "unmatched_user": 0,
+        "unmatched_exchange": 2,
+        "total": 18
+      },
+      "startedAt": "2026-05-23T08:00:00.000Z",
+      "completedAt": "2026-05-23T08:00:08.000Z"
+    }
+  ]
+}
+```
+
+### GET /health
+
+Returns the service health and process uptime.
+
+Example response:
+
+```json
+{
+  "status": "ok",
+  "uptime": 123.45
 }
 ```
 

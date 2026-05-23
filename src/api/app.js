@@ -7,6 +7,7 @@ import { errorHandler } from './middleware/errorHandler.js';
 import { requestLogger } from './middleware/requestLogger.js';
 import { createReconcileRouter } from './routes/reconcile.js';
 import { createReportRouter } from './routes/report.js';
+import { createRunsRouter } from './routes/runs.js';
 
 const app = express();
 
@@ -26,11 +27,12 @@ app.use(
 );
 
 app.get('/health', (_request, response) => {
-  response.json({ status: 'ok' });
+  response.status(200).json({ status: 'ok', uptime: process.uptime() });
 });
 
 app.use(createReconcileRouter());
 app.use(createReportRouter());
+app.use(createRunsRouter());
 
 app.use(errorHandler);
 

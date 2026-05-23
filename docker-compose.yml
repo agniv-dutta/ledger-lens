@@ -1,0 +1,27 @@
+services:
+  app:
+    build: .
+    env_file:
+      - .env
+    environment:
+      PORT: 3000
+      MONGODB_URI: mongodb://mongo:27017/ledger-lens
+    ports:
+      - "3000:3000"
+    depends_on:
+      mongo:
+        condition: service_healthy
+
+  mongo:
+    image: mongo:7
+    restart: unless-stopped
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  mongo-data:

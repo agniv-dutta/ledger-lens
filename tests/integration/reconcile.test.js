@@ -136,6 +136,8 @@ runIntegrationSuite('POST /reconcile integration', () => {
 
     expect(conflictingReport).toBeDefined();
     expect(conflictingReport.reason).toContain('quantity diff exceeds tolerance');
+    expect(conflictingReport.confidenceScore).toBeGreaterThanOrEqual(0);
+    expect(conflictingReport.confidenceScore).toBeLessThanOrEqual(100);
 
     expect(unmatchedExchangeReports).toHaveLength(2);
     expect(unmatchedExchangeReports.map((report) => report.exchangeTx?.transactionId).sort()).toEqual(['EXC-1024', 'EXC-1025']);

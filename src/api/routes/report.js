@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { ReconciliationReport, ReconciliationRun } from '../../db/models/index.js';
+import { streamCsvReport } from '../../reconciliation/runner.js';
 
 const UNMATCHED_CATEGORIES = new Set(['unmatched_user', 'unmatched_exchange']);
 const sourceQuerySchema = z.object({
@@ -119,6 +120,37 @@ export function createReportRouter() {
         reports,
       });
     } catch (error) {
+      next(error);
+    }
+  });
+
+  router.get('/report/:runId/export', async (request, response, next) => {
+    try {
+      const { runId } = request.params;
+      const run = await ReconciliationRun.findOne({ runId }).lean();
+
+      if (!run) {
+        response.status(404).json({ message: 'Run not found' });
+        return;
+      }
+
+      if (['pending', 'running'].includes(run.status)) {
+        response.status(409).json({ message: 'Run is still in progress' });
+        return;
+      }
+
+      response.status(200);
+      response.setHeader('Content-Type', 'text/csv');
+      response.setHeader('Content-Disposition', `attachment; filename="reconciliation-${runId}.csv"`);
+
+      await streamCsvReport(runId, response);
+    } catch (error) {
+      if (response.headersSent) {
+        request.app?.get('logger')?.error?.('CSV export failed', { runId: request.params.runId, error });
+        response.destroy(error);
+        return;
+      }
+
       next(error);
     }
   });

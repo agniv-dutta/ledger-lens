@@ -1,9 +1,29 @@
 import { randomUUID } from 'node:crypto';
+import { Transform } from 'node:stream';
+import { pipeline } from 'node:stream/promises';
 import { ReconciliationReport, ReconciliationRun } from '../db/models/index.js';
 import { ingestFiles } from '../ingestion/index.js';
 import { runMatching } from '../matching/matcher.js';
 import { logger } from '../utils/logger.js';
 import { writeReport } from './reportWriter.js';
+
+export const CSV_COLUMNS = [
+  'category',
+  'reason',
+  'user_transaction_id',
+  'user_timestamp',
+  'user_type',
+  'user_asset',
+  'user_quantity',
+  'exchange_transaction_id',
+  'exchange_timestamp',
+  'exchange_type',
+  'exchange_asset',
+  'exchange_quantity',
+  'diff_quantity',
+  'diff_seconds',
+  'confidence_score',
+];
 
 /**
  * Measure and log a reconciliation stage.
@@ -136,7 +156,61 @@ function toCsvRow(report) {
     exchange_quantity: report.exchangeTx?.quantity ?? '',
     diff_quantity: report.diffDetails?.quantityDiff ?? '',
     diff_seconds: report.diffDetails?.timestampDiffSeconds ?? '',
+    confidence_score: report.confidenceScore ?? '',
   };
+}
+
+/**
+ * Format a reconciliation report row as CSV.
+ * @param {object} report - The reconciliation report document.
+ * @returns {string} The escaped CSV row.
+ */
+function formatCsvRow(report) {
+  const row = toCsvRow(report);
+  return CSV_COLUMNS.map((column) => escapeCsvCell(row[column])).join(',');
+}
+
+/**
+ * Create a streaming CSV transform for reconciliation reports.
+ * @returns {Transform} The CSV transform stream.
+ */
+export function createCsvReportTransform() {
+  let headerWritten = false;
+
+  return new Transform({
+    writableObjectMode: true,
+    transform(report, _encoding, callback) {
+      if (!headerWritten) {
+        this.push(`${CSV_COLUMNS.join(',')}\n`);
+        headerWritten = true;
+      }
+
+      this.push(`${formatCsvRow(report)}\n`);
+      callback();
+    },
+    flush(callback) {
+      if (!headerWritten) {
+        this.push(`${CSV_COLUMNS.join(',')}\n`);
+      }
+
+      callback();
+    },
+  });
+}
+
+/**
+ * Stream a CSV report directly to a writable stream.
+ * @param {string} runId - The reconciliation run identifier.
+ * @param {import('stream').Writable} writable - The destination writable stream.
+ * @returns {Promise<void>} Resolves when streaming completes.
+ */
+export async function streamCsvReport(runId, writable) {
+  const cursor = ReconciliationReport.find({ runId })
+    .sort({ category: 1, createdAt: 1, _id: 1 })
+    .lean()
+    .cursor();
+
+  await pipeline(cursor, createCsvReportTransform(), writable);
 }
 
 /**
@@ -149,28 +223,8 @@ export async function generateCsvReport(runId) {
     .sort({ category: 1, createdAt: 1, _id: 1 })
     .lean();
 
-  const columns = [
-    'category',
-    'reason',
-    'user_transaction_id',
-    'user_timestamp',
-    'user_type',
-    'user_asset',
-    'user_quantity',
-    'exchange_transaction_id',
-    'exchange_timestamp',
-    'exchange_type',
-    'exchange_asset',
-    'exchange_quantity',
-    'diff_quantity',
-    'diff_seconds',
-  ];
-
-  const header = columns.join(',');
-  const lines = reports.map((report) => {
-    const row = toCsvRow(report);
-    return columns.map((column) => escapeCsvCell(row[column])).join(',');
-  });
+  const header = CSV_COLUMNS.join(',');
+  const lines = reports.map(formatCsvRow);
 
   return [header, ...lines].join('\n');
 }

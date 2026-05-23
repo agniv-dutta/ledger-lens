@@ -55,8 +55,8 @@ describe('writeReport', () => {
 
   test('inserts report rows and completes the run summary', async () => {
     const results = [
-      { category: 'matched', userTx: { transactionId: 'u1' }, exchangeTx: { transactionId: 'e1' }, reason: null, diffDetails: { quantityDiff: 0, timestampDiffSeconds: 2 } },
-      { category: 'conflicting', userTx: { transactionId: 'u2' }, exchangeTx: { transactionId: 'e2' }, reason: 'quantity diff exceeds tolerance', diffDetails: { quantityDiff: 1, timestampDiffSeconds: 4 } },
+      { category: 'matched', userTx: { transactionId: 'u1' }, exchangeTx: { transactionId: 'e1' }, reason: null, diffDetails: { quantityDiff: 0, timestampDiffSeconds: 2 }, confidenceScore: 99 },
+      { category: 'conflicting', userTx: { transactionId: 'u2' }, exchangeTx: { transactionId: 'e2' }, reason: 'quantity diff exceeds tolerance', diffDetails: { quantityDiff: 1, timestampDiffSeconds: 4 }, confidenceScore: 63 },
       { category: 'unmatched_user', userTx: { transactionId: 'u3' }, exchangeTx: null, reason: 'no eligible match found', diffDetails: null },
       { category: 'unmatched_exchange', userTx: null, exchangeTx: { transactionId: 'e4' }, reason: 'no eligible match found', diffDetails: null },
     ];
@@ -72,6 +72,7 @@ describe('writeReport', () => {
           exchangeTx: results[0].exchangeTx,
           reason: null,
           diffDetails: results[0].diffDetails,
+          confidenceScore: 99,
         },
         {
           runId: 'run-uuid-1',
@@ -80,6 +81,7 @@ describe('writeReport', () => {
           exchangeTx: results[1].exchangeTx,
           reason: 'quantity diff exceeds tolerance',
           diffDetails: results[1].diffDetails,
+          confidenceScore: 63,
         },
         {
           runId: 'run-uuid-1',
@@ -203,6 +205,7 @@ describe('generateCsvReport', () => {
           {
             category: 'matched',
             reason: null,
+            confidenceScore: 99,
             userTx: {
               transactionId: 'u1',
               timestamp: new Date('2024-01-01T10:00:00Z'),
@@ -227,8 +230,8 @@ describe('generateCsvReport', () => {
 
     expect(csv).toBe(
       [
-        'category,reason,user_transaction_id,user_timestamp,user_type,user_asset,user_quantity,exchange_transaction_id,exchange_timestamp,exchange_type,exchange_asset,exchange_quantity,diff_quantity,diff_seconds',
-        'matched,,u1,2024-01-01T10:00:00.000Z,BUY,BTC,1,e1,2024-01-01T10:00:10.000Z,BUY,BTC,1,0,10',
+        'category,reason,user_transaction_id,user_timestamp,user_type,user_asset,user_quantity,exchange_transaction_id,exchange_timestamp,exchange_type,exchange_asset,exchange_quantity,diff_quantity,diff_seconds,confidence_score',
+        'matched,,u1,2024-01-01T10:00:00.000Z,BUY,BTC,1,e1,2024-01-01T10:00:10.000Z,BUY,BTC,1,0,10,99',
       ].join('\n')
     );
   });

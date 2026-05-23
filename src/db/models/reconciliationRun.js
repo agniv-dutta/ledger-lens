@@ -45,4 +45,6 @@ const reconciliationRunSchema = new Schema(
   }
 );
 
+reconciliationRunSchema.index({ status: 1, startedAt: -1 });
+
 export const ReconciliationRun = mongoose.model('ReconciliationRun', reconciliationRunSchema);

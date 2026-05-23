@@ -31,6 +31,10 @@ const reconciliationReportSchema = new Schema(
       type: Schema.Types.Mixed,
       default: null,
     },
+    confidenceScore: {
+      type: Number,
+      default: null,
+    },
   },
   {
     collection: 'reconciliationReports',

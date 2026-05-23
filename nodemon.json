@@ -1,0 +1,12 @@
+{
+  "watch": [
+    "src"
+  ],
+  "ignore": [
+    "logs/*",
+    ".env",
+    ".env.*",
+    "coverage/*",
+    "data/*"
+  ]
+}

@@ -43,6 +43,7 @@ export async function writeReport({ runId, results }) {
     exchangeTx: result.exchangeTx,
     reason: result.reason,
     diffDetails: result.diffDetails,
+    ...(result.confidenceScore != null ? { confidenceScore: result.confidenceScore } : {}),
   }));
 
   if (reportDocuments.length > 0) {

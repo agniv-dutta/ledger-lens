@@ -1,5 +1,6 @@
 import { ExchangeTransaction, UserTransaction } from '../db/models/index.js';
 import { logger } from '../utils/logger.js';
+import { computeConfidence } from './confidence.js';
 import { normaliseAsset, normaliseType } from './normalise.js';
 
 const CATEGORY = {
@@ -36,12 +37,15 @@ function isValidDate(value) {
  */
 function prepareTransaction(transaction, source) {
   const timestampMs = isValidDate(transaction.timestamp) ? transaction.timestamp.getTime() : null;
+  const originalAsset = String(transaction.asset ?? '').trim();
+  const normalizedAsset = normaliseAsset(transaction.asset);
 
   return {
     ...transaction,
     source,
     id: String(transaction._id ?? ''),
-    normalizedAsset: normaliseAsset(transaction.asset),
+    normalizedAsset,
+    assetAliased: originalAsset !== '' && originalAsset.toUpperCase() !== normalizedAsset,
     normalizedType: String(transaction.type ?? '').trim().toUpperCase(),
     timestampMs,
     quantityValue: toFiniteNumber(transaction.quantity),
@@ -130,6 +134,7 @@ function buildResult(category, userTx, exchangeTx, reason, diffDetails) {
     exchangeTx,
     reason,
     diffDetails,
+    confidenceScore: null,
   };
 }
 
@@ -149,6 +154,53 @@ function buildDiffDetails(userTx, exchangeTx) {
     quantityDiffPct,
     timestampDiffSeconds,
   };
+}
+
+/**
+ * Determine whether a matched pair used a type swap.
+ * @param {object} userTx - The prepared user transaction.
+ * @param {object} exchangeTx - The prepared exchange transaction.
+ * @returns {boolean} True when the match used a TRANSFER_IN/TRANSFER_OUT swap.
+ */
+function didUseTypeSwap(userTx, exchangeTx) {
+  return userTx.normalizedType !== exchangeTx.normalizedType;
+}
+
+/**
+ * Normalize quantity drift to the configured tolerance limit.
+ * @param {number|null} quantityDiffPct - Absolute quantity drift as a fraction of the user quantity.
+ * @param {number} quantityTolerancePct - The configured quantity tolerance.
+ * @returns {number} The normalized quantity drift ratio, clamped to [0, 1].
+ */
+function normalizeQuantityDrift(quantityDiffPct, quantityTolerancePct) {
+  if (quantityDiffPct == null) {
+    return 1;
+  }
+
+  if (quantityTolerancePct <= 0) {
+    return quantityDiffPct === 0 ? 0 : 1;
+  }
+
+  return Math.min(Math.max(quantityDiffPct / quantityTolerancePct, 0), 1);
+}
+
+/**
+ * Build the confidence score for a matched or conflicting pair.
+ * @param {object} userTx - The prepared user transaction.
+ * @param {object} exchangeTx - The prepared exchange transaction.
+ * @param {object} diffDetails - The computed difference details.
+ * @param {number} quantityTolerancePct - The configured quantity tolerance.
+ * @param {number} timestampToleranceSeconds - The configured timestamp tolerance.
+ * @returns {number} The computed confidence score.
+ */
+function buildConfidenceScore(userTx, exchangeTx, diffDetails, quantityTolerancePct, timestampToleranceSeconds) {
+  return computeConfidence({
+    timestampDiffSeconds: diffDetails.timestampDiffSeconds,
+    timestampToleranceSeconds,
+    quantityDiffPct: normalizeQuantityDrift(diffDetails.quantityDiffPct, quantityTolerancePct),
+    typeSwapped: didUseTypeSwap(userTx, exchangeTx),
+    assetAliased: Boolean(userTx.assetAliased || exchangeTx.assetAliased),
+  });
 }
 
 /**
@@ -283,19 +335,33 @@ export async function runMatching({ runId, config }) {
     const compatible = isWithinQuantityTolerance(quantityDiffPct, config.quantityTolerancePct);
 
     if (compatible) {
-      results.push(buildResult(CATEGORY.matched, userTx, bestCandidate.exchangeTx, null, diffDetails));
+      const result = buildResult(CATEGORY.matched, userTx, bestCandidate.exchangeTx, null, diffDetails);
+      result.confidenceScore = buildConfidenceScore(
+        userTx,
+        bestCandidate.exchangeTx,
+        diffDetails,
+        config.quantityTolerancePct,
+        config.timestampToleranceSeconds
+      );
+      results.push(result);
       continue;
     }
 
-    results.push(
-      buildResult(
-        CATEGORY.conflicting,
-        userTx,
-        bestCandidate.exchangeTx,
-        `quantity diff exceeds tolerance: ${quantityDiffPct == null ? 'n/a' : quantityDiffPct}`,
-        diffDetails
-      )
+    const result = buildResult(
+      CATEGORY.conflicting,
+      userTx,
+      bestCandidate.exchangeTx,
+      `quantity diff exceeds tolerance: ${quantityDiffPct == null ? 'n/a' : quantityDiffPct}`,
+      diffDetails
     );
+    result.confidenceScore = buildConfidenceScore(
+      userTx,
+      bestCandidate.exchangeTx,
+      diffDetails,
+      config.quantityTolerancePct,
+      config.timestampToleranceSeconds
+    );
+    results.push(result);
   }
 
   const matchedUserIds = new Set(results.filter((entry) => entry.userTx != null).map((entry) => entry.userTx.id));

@@ -196,6 +196,8 @@ describe('runMatching', () => {
     expect(conflicting.userTx.transactionId).toBe('u2');
     expect(conflicting.exchangeTx.transactionId).toBe('e3');
     expect(conflicting.reason).toContain('quantity diff exceeds tolerance');
+    expect(matched.confidenceScore).toBe(50);
+    expect(conflicting.confidenceScore).toBe(53);
     expect(unmatchedUser.reason).toBe('no eligible match found');
     expect(unmatchedExchange.reason).toBe('no eligible match found');
     expect(flaggedUser.reason).toBe('flagged during ingestion: bad timestamp');
