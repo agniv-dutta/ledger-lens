@@ -1,0 +1,7 @@
+node_modules
+.env
+.env.test
+logs/
+*.csv
+!data/*.csv
+coverage
