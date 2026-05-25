@@ -27,7 +27,11 @@ app.use(
 );
 
 app.get('/health', (_request, response) => {
-  response.status(200).json({ status: 'ok', uptime: process.uptime() });
+  response.status(200).json({
+    status: 'ok',
+    uptime: process.uptime(),
+    timestamp: new Date().toISOString(),
+  });
 });
 
 app.use(createReconcileRouter());

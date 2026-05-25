@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: ledger-lens
+    runtime: node
+    plan: free
+    branch: main
+    autoDeployTrigger: commit
+    healthCheckPath: /health
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000
+      - key: TIMESTAMP_TOLERANCE_SECONDS
+        value: 300
+      - key: QUANTITY_TOLERANCE_PCT
+        value: 0.01
+      - key: LOG_LEVEL
+        value: info
+      - key: MONGODB_URI
+        sync: false

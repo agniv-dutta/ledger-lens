@@ -39,6 +39,14 @@ npm install
 npm run dev
 ```
 
+## Deployment
+
+1. Create a free MongoDB Atlas cluster, whitelist `0.0.0.0/0`, and copy the connection string.
+2. Connect the GitHub repository to Render and create a new Web Service.
+3. Add `MONGODB_URI` in Render's Environment tab.
+4. Push to `main` and Render will auto-deploy.
+5. Test the deployment with `curl https://<your-render-url>/health`.
+
 ## Docker
 
 Build and start the service with MongoDB using Docker Compose:
@@ -200,7 +208,8 @@ Example response:
 ```json
 {
   "status": "ok",
-  "uptime": 123.45
+  "uptime": 123.45,
+  "timestamp": "2026-05-26T12:34:56.789Z"
 }
 ```
 

@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "description": "Production-grade Node.js + Express + MongoDB service for ledger reconciliation",
   "type": "module",
+  "engines": {
+    "node": "18.x"
+  },
   "main": "src/index.js",
   "scripts": {
     "start": "node src/index.js",
