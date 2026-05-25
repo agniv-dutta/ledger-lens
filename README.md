@@ -1,4 +1,5 @@
 # ledger-lens
+[![Node.js](https://img.shields.io/badge/Node.js-18.x-339933?logo=node.js&logoColor=white)](https://nodejs.org/) [![Express](https://img.shields.io/badge/Express-4.x-000000?logo=express&logoColor=white)](https://expressjs.com/) [![MongoDB](https://img.shields.io/badge/MongoDB-6.x-47A248?logo=mongodb&logoColor=white)](https://www.mongodb.com/) [![Jest](https://img.shields.io/badge/Jest-29.x-C21325?logo=jest&logoColor=white)](https://jestjs.io/)
 
 ledger-lens is a Node.js + Express + MongoDB reconciliation service for comparing user and exchange transaction exports, flagging quality issues, matching rows with configurable tolerances, and producing run-scoped reports.
 
